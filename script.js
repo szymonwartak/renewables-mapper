@@ -192,23 +192,59 @@ async function geocodeCountry(countryName) {
         return geocodingCache.get(countryName);
     }
 
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(countryName)}&limit=1`);
-        const data = await response.json();
+    // Check local coordinate database first
+    if (countryCoordinates[countryName]) {
+        const coordinates = countryCoordinates[countryName];
+        geocodingCache.set(countryName, coordinates);
+        return coordinates;
+    }
 
-        if (data.length > 0) {
-            const coordinates = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-            // Cache the result
-            geocodingCache.set(countryName, coordinates);
-            return coordinates;
+    // If not in local database, try external geocoding service
+    try {
+        // Try multiple geocoding services as fallback
+        const services = [
+            `https://api.geocoding.com/v1/search?q=${encodeURIComponent(countryName)}&limit=1`,
+            `https://geocode.xyz/${encodeURIComponent(countryName)}?json=1&limit=1`
+        ];
+
+        for (const serviceUrl of services) {
+            try {
+                const response = await fetch(serviceUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    let coordinates = null;
+
+                    // Parse different response formats
+                    if (data.features && data.features.length > 0) {
+                        coordinates = data.features[0].geometry.coordinates.reverse();
+                    } else if (data.latt && data.longt) {
+                        coordinates = [parseFloat(data.latt), parseFloat(data.longt)];
+                    }
+
+                    if (coordinates && coordinates[0] !== 0 && coordinates[1] !== 0) {
+                        geocodingCache.set(countryName, coordinates);
+                        return coordinates;
+                    }
+                }
+            } catch (serviceError) {
+                console.warn(`Service failed for ${countryName}:`, serviceError);
+                continue;
+            }
         }
 
-        // Cache null result to avoid repeated failed requests
+        // If all services fail, cache null result
         geocodingCache.set(countryName, null);
         return null;
+
     } catch (error) {
-        console.warn(`Geocoding failed for ${countryName}:`, error);
-        // Cache null result to avoid repeated failed requests
+        console.warn(`All geocoding services failed for ${countryName}:`, error);
         geocodingCache.set(countryName, null);
         return null;
     }
