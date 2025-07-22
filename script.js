@@ -2,6 +2,7 @@
 let map;
 let markers = [];
 let energyData = [];
+let geocodingCache = new Map(); // Cache for geocoding results
 
 // Country name mapping for geocoding
 const countryMapping = {
@@ -135,36 +136,80 @@ async function createMarkers() {
     markers.forEach(marker => map.removeLayer(marker));
     markers = [];
 
-    for (const data of energyData) {
-        if (data.capacity >= minCapacity && data.capacity <= maxCapacity) {
-            const countryName = countryMapping[data.country] || data.country;
+    // Filter data based on capacity range
+    const filteredData = energyData.filter(data =>
+        data.capacity >= minCapacity && data.capacity <= maxCapacity
+    );
 
+    if (filteredData.length === 0) {
+        updateStats();
+        return;
+    }
+
+    // Show loading indicator
+    const loadingElement = document.getElementById('loading');
+    loadingElement.classList.remove('hidden');
+
+    try {
+        // Create geocoding promises for all countries in parallel
+        const geocodingPromises = filteredData.map(async (data) => {
+            const countryName = countryMapping[data.country] || data.country;
             try {
                 const coordinates = await geocodeCountry(countryName);
-                if (coordinates) {
-                    const marker = createMarker(coordinates, data);
-                    markers.push(marker);
-                    marker.addTo(map);
-                }
+                return coordinates ? { coordinates, data } : null;
             } catch (error) {
                 console.warn(`Could not geocode ${countryName}:`, error);
+                return null;
             }
-        }
+        });
+
+        // Wait for all geocoding to complete
+        const results = await Promise.all(geocodingPromises);
+
+        // Create markers for successful geocoding results
+        results.forEach(result => {
+            if (result) {
+                const marker = createMarker(result.coordinates, result.data);
+                markers.push(marker);
+                marker.addTo(map);
+            }
+        });
+
+        console.log(`Successfully loaded ${results.filter(r => r !== null).length} countries out of ${filteredData.length} total`);
+
+    } catch (error) {
+        console.error('Error creating markers:', error);
+    } finally {
+        // Hide loading indicator
+        loadingElement.classList.add('hidden');
     }
 }
 
 // Geocode country name to coordinates
 async function geocodeCountry(countryName) {
+    // Check cache first
+    if (geocodingCache.has(countryName)) {
+        return geocodingCache.get(countryName);
+    }
+
     try {
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(countryName)}&limit=1`);
         const data = await response.json();
 
         if (data.length > 0) {
-            return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            const coordinates = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            // Cache the result
+            geocodingCache.set(countryName, coordinates);
+            return coordinates;
         }
+
+        // Cache null result to avoid repeated failed requests
+        geocodingCache.set(countryName, null);
         return null;
     } catch (error) {
         console.warn(`Geocoding failed for ${countryName}:`, error);
+        // Cache null result to avoid repeated failed requests
+        geocodingCache.set(countryName, null);
         return null;
     }
 }
