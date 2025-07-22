@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renewable Energy Mapper</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🌍 Renewable Energy Capacity Map</h1>
+            <p>Global electricity installed capacity (MW) by country - 2024</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="minCapacity">Min Capacity (MW):</label>
+                <input type="range" id="minCapacity" min="0" max="100000" value="0" step="1000">
+                <span id="minCapacityValue">0</span>
+            </div>
+            <div class="control-group">
+                <label for="maxCapacity">Max Capacity (MW):</label>
+                <input type="range" id="maxCapacity" min="0" max="2000000" value="2000000" step="10000">
+                <span id="maxCapacityValue">2,000,000</span>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Countries</h3>
+                <span id="totalCountries">0</span>
+            </div>
+            <div class="stat-card">
+                <h3>Total Capacity</h3>
+                <span id="totalCapacity">0 MW</span>
+            </div>
+            <div class="stat-card">
+                <h3>Average Capacity</h3>
+                <span id="avgCapacity">0 MW</span>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <div class="legend">
+            <h3>Capacity Scale (MW)</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-circle small"></div>
+                    <span>&lt; 1,000</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-circle medium"></div>
+                    <span>1,000 - 10,000</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-circle large"></div>
+                    <span>10,000 - 100,000</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-circle xlarge"></div>
+                    <span>&gt; 100,000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
